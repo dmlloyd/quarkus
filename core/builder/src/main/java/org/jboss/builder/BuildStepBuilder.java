@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.jboss.builder.item.BuildItem;
-import org.jboss.builder.item.NamedBuildItem;
+import org.jboss.builder.item.Named;
 import org.jboss.builder.item.SymbolicBuildItem;
 import org.wildfly.common.Assert;
 
@@ -60,7 +60,7 @@ public final class BuildStepBuilder {
      */
     public BuildStepBuilder beforeConsume(Class<? extends BuildItem> type) {
         Assert.checkNotNullParam("type", type);
-        if (NamedBuildItem.class.isAssignableFrom(type)) {
+        if (Named.class.isAssignableFrom(type)) {
             throw new IllegalArgumentException("Cannot consume a named build item without a name");
         }
         addProduces(new ItemId(type, null), Constraint.ORDER_ONLY, ProduceFlags.NONE);
@@ -78,7 +78,7 @@ public final class BuildStepBuilder {
     public BuildStepBuilder beforeConsume(Class<? extends BuildItem> type, ProduceFlag flag) {
         Assert.checkNotNullParam("type", type);
         Assert.checkNotNullParam("flag", flag);
-        if (NamedBuildItem.class.isAssignableFrom(type)) {
+        if (Named.class.isAssignableFrom(type)) {
             throw new IllegalArgumentException("Cannot consume a named build item without a name");
         }
         addProduces(new ItemId(type, null), Constraint.ORDER_ONLY, ProduceFlags.of(flag));
@@ -93,9 +93,12 @@ public final class BuildStepBuilder {
      * @param name the build item name (must not be {@code null})
      * @return this builder
      */
-    public <N> BuildStepBuilder beforeConsume(Class<? extends NamedBuildItem<N>> type, N name) {
+    public <N, T extends BuildItem & Named<N>> BuildStepBuilder beforeConsume(Class<T> type, N name) {
         Assert.checkNotNullParam("type", type);
         Assert.checkNotNullParam("name", name);
+        if (! (name instanceof Enum<?>)) {
+            throw new IllegalArgumentException("Names must be enum constants");
+        }
         addProduces(new ItemId(type, name), Constraint.ORDER_ONLY, ProduceFlags.NONE);
         return this;
     }
@@ -109,10 +112,13 @@ public final class BuildStepBuilder {
      * @param flag the producer flag to apply (must not be {@code null})
      * @return this builder
      */
-    public <N> BuildStepBuilder beforeConsume(Class<? extends NamedBuildItem<N>> type, N name, ProduceFlag flag) {
+    public <N, T extends BuildItem & Named<N>> BuildStepBuilder beforeConsume(Class<T> type, N name, ProduceFlag flag) {
         Assert.checkNotNullParam("type", type);
         Assert.checkNotNullParam("name", name);
         Assert.checkNotNullParam("flag", flag);
+        if (! (name instanceof Enum<?>)) {
+            throw new IllegalArgumentException("Names must be enum constants");
+        }
         addProduces(new ItemId(type, name), Constraint.ORDER_ONLY, ProduceFlags.of(flag));
         return this;
     }
@@ -126,7 +132,7 @@ public final class BuildStepBuilder {
      */
     public BuildStepBuilder afterProduce(Class<? extends BuildItem> type) {
         Assert.checkNotNullParam("type", type);
-        if (NamedBuildItem.class.isAssignableFrom(type)) {
+        if (Named.class.isAssignableFrom(type)) {
             throw new IllegalArgumentException("Cannot produce a named build item without a name");
         }
         addConsumes(new ItemId(type, null), Constraint.ORDER_ONLY, ConsumeFlags.of(ConsumeFlag.OPTIONAL));
@@ -141,9 +147,12 @@ public final class BuildStepBuilder {
      * @param name the build item name (must not be {@code null})
      * @return this builder
      */
-    public <N> BuildStepBuilder afterProduce(Class<? extends NamedBuildItem<N>> type, N name) {
+    public <N, T extends BuildItem & Named<N>> BuildStepBuilder afterProduce(Class<T> type, N name) {
         Assert.checkNotNullParam("type", type);
         Assert.checkNotNullParam("name", name);
+        if (! (name instanceof Enum<?>)) {
+            throw new IllegalArgumentException("Names must be enum constants");
+        }
         addConsumes(new ItemId(type, name), Constraint.ORDER_ONLY, ConsumeFlags.of(ConsumeFlag.OPTIONAL));
         return this;
     }
@@ -158,7 +167,7 @@ public final class BuildStepBuilder {
      */
     public BuildStepBuilder produces(Class<? extends BuildItem> type) {
         Assert.checkNotNullParam("type", type);
-        if (NamedBuildItem.class.isAssignableFrom(type)) {
+        if (Named.class.isAssignableFrom(type)) {
             throw new IllegalArgumentException("Cannot produce a named build item without a name");
         }
         addProduces(new ItemId(type, null), Constraint.REAL, ProduceFlags.NONE);
@@ -177,7 +186,7 @@ public final class BuildStepBuilder {
     public BuildStepBuilder produces(Class<? extends BuildItem> type, ProduceFlag flag) {
         Assert.checkNotNullParam("type", type);
         Assert.checkNotNullParam("flag", flag);
-        if (NamedBuildItem.class.isAssignableFrom(type)) {
+        if (Named.class.isAssignableFrom(type)) {
             throw new IllegalArgumentException("Cannot produce a named build item without a name");
         }
         addProduces(new ItemId(type, null), Constraint.REAL, ProduceFlags.of(flag));
@@ -196,7 +205,7 @@ public final class BuildStepBuilder {
     public BuildStepBuilder produces(Class<? extends BuildItem> type, ProduceFlags flags) {
         Assert.checkNotNullParam("type", type);
         Assert.checkNotNullParam("flag", flags);
-        if (NamedBuildItem.class.isAssignableFrom(type)) {
+        if (Named.class.isAssignableFrom(type)) {
             throw new IllegalArgumentException("Cannot produce a named build item without a name");
         }
         addProduces(new ItemId(type, null), Constraint.REAL, flags);
@@ -212,9 +221,12 @@ public final class BuildStepBuilder {
      * @param name the build item name (must not be {@code null})
      * @return this builder
      */
-    public <N> BuildStepBuilder produces(Class<? extends NamedBuildItem<N>> type, N name) {
+    public <N, T extends BuildItem & Named<N>> BuildStepBuilder produces(Class<T> type, N name) {
         Assert.checkNotNullParam("type", type);
         Assert.checkNotNullParam("name", name);
+        if (! (name instanceof Enum<?>)) {
+            throw new IllegalArgumentException("Names must be enum constants");
+        }
         addProduces(new ItemId(type, name), Constraint.REAL, ProduceFlags.NONE);
         return this;
     }
@@ -229,10 +241,13 @@ public final class BuildStepBuilder {
      * @param flag the producer flag to apply (must not be {@code null})
      * @return this builder
      */
-    public <N> BuildStepBuilder produces(Class<? extends NamedBuildItem<N>> type, N name, ProduceFlag flag) {
+    public <N, T extends BuildItem & Named<N>> BuildStepBuilder produces(Class<T> type, N name, ProduceFlag flag) {
         Assert.checkNotNullParam("type", type);
         Assert.checkNotNullParam("name", name);
         Assert.checkNotNullParam("flag", flag);
+        if (! (name instanceof Enum<?>)) {
+            throw new IllegalArgumentException("Names must be enum constants");
+        }
         addProduces(new ItemId(type, name), Constraint.REAL, ProduceFlags.of(flag));
         return this;
     }
@@ -272,7 +287,7 @@ public final class BuildStepBuilder {
      */
     public BuildStepBuilder consumes(Class<? extends BuildItem> type) {
         Assert.checkNotNullParam("type", type);
-        if (NamedBuildItem.class.isAssignableFrom(type)) {
+        if (Named.class.isAssignableFrom(type)) {
             throw new IllegalArgumentException("Cannot consume a named build item without a name");
         }
         addConsumes(new ItemId(type, null), Constraint.REAL, ConsumeFlags.NONE);
@@ -287,9 +302,12 @@ public final class BuildStepBuilder {
      * @param name the build item name (must not be {@code null})
      * @return this builder
      */
-    public <N> BuildStepBuilder consumes(Class<? extends NamedBuildItem<N>> type, N name) {
+    public <N, T extends BuildItem & Named<N>> BuildStepBuilder consumes(Class<T> type, N name) {
         Assert.checkNotNullParam("type", type);
         Assert.checkNotNullParam("name", name);
+        if (! (name instanceof Enum<?>)) {
+            throw new IllegalArgumentException("Names must be enum constants");
+        }
         addConsumes(new ItemId(type, name), Constraint.REAL, ConsumeFlags.NONE);
         return this;
     }
@@ -304,7 +322,7 @@ public final class BuildStepBuilder {
      */
     public BuildStepBuilder consumes(Class<? extends BuildItem> type, ConsumeFlags flags) {
         Assert.checkNotNullParam("type", type);
-        if (NamedBuildItem.class.isAssignableFrom(type)) {
+        if (Named.class.isAssignableFrom(type)) {
             throw new IllegalArgumentException("Cannot consume a named build item without a name");
         }
         addConsumes(new ItemId(type, null), Constraint.REAL, flags);
@@ -319,9 +337,12 @@ public final class BuildStepBuilder {
      * @param flags a set of flags which modify the consume operation (must not be {@code null})
      * @return this builder
      */
-    public <N> BuildStepBuilder consumes(Class<? extends NamedBuildItem<N>> type, N name, ConsumeFlags flags) {
+    public <N, T extends BuildItem & Named<N>> BuildStepBuilder consumes(Class<T> type, N name, ConsumeFlags flags) {
         Assert.checkNotNullParam("type", type);
         Assert.checkNotNullParam("name", name);
+        if (! (name instanceof Enum<?>)) {
+            throw new IllegalArgumentException("Names must be enum constants");
+        }
         addConsumes(new ItemId(type, name), Constraint.REAL, flags);
         return this;
     }

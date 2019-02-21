@@ -27,8 +27,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.jboss.builder.diag.Diagnostic;
-import org.jboss.builder.item.NamedBuildItem;
-import org.jboss.builder.item.NamedMultiBuildItem;
+import org.jboss.builder.item.Named;
 import org.jboss.builder.location.Location;
 import org.jboss.builder.item.MultiBuildItem;
 import org.jboss.builder.item.BuildItem;
@@ -71,7 +70,7 @@ public final class BuildContext {
      */
     public void produce(BuildItem item) {
         Assert.checkNotNullParam("item", item);
-        if (item instanceof NamedBuildItem) {
+        if (item instanceof Named<?>) {
             throw new IllegalArgumentException("Cannot produce a named build item without a name");
         }
         doProduce(new ItemId(item.getClass(), null), item);
@@ -86,6 +85,9 @@ public final class BuildContext {
     public void produce(List<? extends MultiBuildItem> items) {
         Assert.checkNotNullParam("items", items);
         for(MultiBuildItem item : items) {
+            if (item instanceof Named<?>) {
+                throw new IllegalArgumentException("Cannot produce a named build item without a name");
+            }
             doProduce(new ItemId(item.getClass(), null), item);
         }
     }
@@ -101,7 +103,7 @@ public final class BuildContext {
      */
     public <T extends BuildItem> void produce(Class<T> type, T item) {
         Assert.checkNotNullParam("type", type);
-        if (NamedBuildItem.class.isAssignableFrom(type)) {
+        if (Named.class.isAssignableFrom(type)) {
             throw new IllegalArgumentException("Cannot produce a named build item without a name");
         }
         doProduce(new ItemId(type, null), type.cast(item));
@@ -116,9 +118,12 @@ public final class BuildContext {
      * @throws IllegalArgumentException if the item does not allow multiplicity but this method is called more than one time,
      * or if the type of item could not be determined
      */
-    public <N> void produce(N name, NamedBuildItem<N> item) {
+    public <N, T extends BuildItem & Named<N>> void produce(N name, T item) {
         Assert.checkNotNullParam("name", name);
         Assert.checkNotNullParam("item", item);
+        if (! (name instanceof Enum<?>)) {
+            throw new IllegalArgumentException("Names must be enum constants");
+        }
         doProduce(new ItemId(item.getClass(), name), item);
     }
 
@@ -132,10 +137,13 @@ public final class BuildContext {
      * @throws IllegalArgumentException if the item does not allow multiplicity but this method is called more than one time,
      * or if the type of item could not be determined
      */
-    public <N, T extends NamedBuildItem<N>> void produce(Class<T> type, N name, NamedBuildItem<N> item) {
+    public <N, T extends BuildItem & Named<N>> void produce(Class<T> type, N name, T item) {
         Assert.checkNotNullParam("type", type);
         Assert.checkNotNullParam("name", name);
         Assert.checkNotNullParam("item", item);
+        if (! (name instanceof Enum<?>)) {
+            throw new IllegalArgumentException("Names must be enum constants");
+        }
         doProduce(new ItemId(type, name), item);
     }
 
@@ -149,6 +157,9 @@ public final class BuildContext {
      */
     public <T extends SimpleBuildItem> T consume(Class<T> type) {
         Assert.checkNotNullParam("type", type);
+        if (Named.class.isAssignableFrom(type)) {
+            throw new IllegalArgumentException("Cannot consume a named build item without a name");
+        }
         final ItemId id = new ItemId(type, null);
         if (id.isMulti()) {
             throw Messages.msg.cannotMulti(id);
@@ -168,9 +179,12 @@ public final class BuildContext {
      * @throws IllegalArgumentException if this deployer was not declared to consume {@code type}, or if {@code type} is {@code null}
      * @throws ClassCastException if the cast failed
      */
-    public <N, T extends NamedBuildItem<N>> T consume(Class<T> type, N name) {
+    public <N, T extends BuildItem & Named<N>> T consume(Class<T> type, N name) {
         Assert.checkNotNullParam("type", type);
         Assert.checkNotNullParam("name", name);
+        if (! (name instanceof Enum<?>)) {
+            throw new IllegalArgumentException("Names must be enum constants");
+        }
         final ItemId id = new ItemId(type, name);
         if (id.isMulti()) {
             throw Messages.msg.cannotMulti(id);
@@ -192,6 +206,9 @@ public final class BuildContext {
      */
     public <T extends MultiBuildItem> List<T> consumeMulti(Class<T> type) {
         Assert.checkNotNullParam("type", type);
+        if (Named.class.isAssignableFrom(type)) {
+            throw new IllegalArgumentException("Cannot consume a named build item without a name");
+        }
         final ItemId id = new ItemId(type, null);
         if (! id.isMulti()) {
             // can happen if obj changes base class
@@ -213,9 +230,12 @@ public final class BuildContext {
      * @return the produced items (may be empty, will not be {@code null})
      * @throws IllegalArgumentException if this deployer was not declared to consume {@code type}, or if {@code type} is {@code null}
      */
-    public <N, T extends NamedMultiBuildItem<N>> List<T> consumeMulti(Class<T> type, N name) {
+    public <N, T extends MultiBuildItem & Named<N>> List<T> consumeMulti(Class<T> type, N name) {
         Assert.checkNotNullParam("type", type);
         Assert.checkNotNullParam("name", name);
+        if (! (name instanceof Enum<?>)) {
+            throw new IllegalArgumentException("Names must be enum constants");
+        }
         final ItemId id = new ItemId(type, name);
         if (! id.isMulti()) {
             // can happen if obj changes base class
@@ -251,7 +271,7 @@ public final class BuildContext {
      * @return the produced items (may be empty, will not be {@code null})
      * @throws IllegalArgumentException if this deployer was not declared to consume {@code type}, or if {@code type} is {@code null}
      */
-    public <N, T extends NamedMultiBuildItem<N>> List<T> consumeMulti(Class<T> type, N name, Comparator<? super T> comparator) {
+    public <N, T extends MultiBuildItem & Named<N>> List<T> consumeMulti(Class<T> type, N name, Comparator<? super T> comparator) {
         final List<T> result = consumeMulti(type, name);
         result.sort(comparator);
         return result;
@@ -276,7 +296,7 @@ public final class BuildContext {
      * @return {@code true} if the item was produced and is available, {@code false} if it was not or if this deployer does
      * not consume the named item
      */
-    public <N> boolean isAvailableToConsume(Class<? extends NamedBuildItem<N>> type, N name) {
+    public <N, T extends BuildItem & Named<N>> boolean isAvailableToConsume(Class<T> type, N name) {
         final ItemId id = new ItemId(type, name);
         return stepInfo.getConsumes().contains(id) && id.isMulti() ? ! execution.getMultis().getOrDefault(id, Collections.emptyList()).isEmpty() : execution.getSingles().containsKey(id);
     }
@@ -302,7 +322,7 @@ public final class BuildContext {
      * @return {@code true} if the item will be consumed, {@code false} if it will not be or if this deployer does
      * not produce the named item
      */
-    public <N> boolean isConsumed(Class<? extends NamedBuildItem<N>> type, N name) {
+    public <N, T extends BuildItem & Named<N>> boolean isConsumed(Class<T> type, N name) {
         return execution.getBuildChain().getConsumed().contains(new ItemId(type, name));
     }
 

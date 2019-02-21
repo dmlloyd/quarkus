@@ -34,7 +34,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.jboss.builder.item.BuildItem;
-import org.jboss.builder.item.NamedBuildItem;
+import org.jboss.builder.item.Named;
 import org.jboss.builder.item.SymbolicBuildItem;
 import org.wildfly.common.Assert;
 
@@ -110,7 +110,7 @@ public final class BuildChainBuilder {
      */
     public BuildChainBuilder addInitial(Class<? extends BuildItem> type) {
         Assert.checkNotNullParam("type", type);
-        if (NamedBuildItem.class.isAssignableFrom(type)) {
+        if (Named.class.isAssignableFrom(type)) {
             throw new IllegalArgumentException("Cannot produce a named build item without a name");
         }
         initialIds.add(new ItemId(type, null));
@@ -123,9 +123,12 @@ public final class BuildChainBuilder {
         return this;
     }
 
-    public <N> BuildChainBuilder addInitial(Class<? extends NamedBuildItem<N>> type, N name) {
+    public <N, T extends BuildItem & Named<N>> BuildChainBuilder addInitial(Class<T> type, N name) {
         Assert.checkNotNullParam("type", type);
         Assert.checkNotNullParam("name", name);
+        if (! (name instanceof Enum<?>)) {
+            throw new IllegalArgumentException("Names must be enum constants");
+        }
         initialIds.add(new ItemId(type, name));
         return this;
     }
@@ -148,7 +151,7 @@ public final class BuildChainBuilder {
      */
     public BuildChainBuilder addFinal(Class<? extends BuildItem> type) {
         Assert.checkNotNullParam("type", type);
-        if (NamedBuildItem.class.isAssignableFrom(type)) {
+        if (Named.class.isAssignableFrom(type)) {
             throw new IllegalArgumentException("Cannot consume a named build item without a name");
         }
         finalIds.add(new ItemId(type, null));
@@ -161,9 +164,12 @@ public final class BuildChainBuilder {
         return this;
     }
 
-    public <N> BuildChainBuilder addFinal(Class<? extends NamedBuildItem<N>> type, N name) {
+    public <N, T extends BuildItem & Named<N>> BuildChainBuilder addFinal(Class<T> type, N name) {
         Assert.checkNotNullParam("type", type);
         Assert.checkNotNullParam("name", name);
+        if (! (name instanceof Enum<?>)) {
+            throw new IllegalArgumentException("Names must be enum constants");
+        }
         finalIds.add(new ItemId(type, name));
         return this;
     }

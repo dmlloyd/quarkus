@@ -20,8 +20,7 @@ import java.util.Objects;
 
 import org.jboss.builder.item.BuildItem;
 import org.jboss.builder.item.MultiBuildItem;
-import org.jboss.builder.item.NamedBuildItem;
-import org.jboss.builder.item.NamedMultiBuildItem;
+import org.jboss.builder.item.Named;
 import org.wildfly.common.Assert;
 
 /**
@@ -32,7 +31,7 @@ final class ItemId {
 
     ItemId(final Class<? extends BuildItem> itemType, final Object name) {
         Assert.checkNotNullParam("itemType", itemType);
-        if (NamedBuildItem.class.isAssignableFrom(itemType)) {
+        if (Named.class.isAssignableFrom(itemType)) {
             // todo: support default names
             Assert.checkNotNullParam("name", name);
         }
@@ -41,7 +40,7 @@ final class ItemId {
     }
 
     boolean isMulti() {
-        return MultiBuildItem.class.isAssignableFrom(itemType) || NamedMultiBuildItem.class.isAssignableFrom(itemType);
+        return MultiBuildItem.class.isAssignableFrom(itemType);
     }
 
     @Override

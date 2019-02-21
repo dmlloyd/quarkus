@@ -19,7 +19,7 @@ package org.jboss.builder.item;
 /**
  * The symbolic build item.
  */
-public final class SymbolicBuildItem extends NamedBuildItem<Enum<?>> {
+public final class SymbolicBuildItem extends BuildItem implements Named<Enum<?>> {
 
     private static final SymbolicBuildItem INSTANCE = new SymbolicBuildItem();
 

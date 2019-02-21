@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.jboss.builder.item.BuildItem;
-import org.jboss.builder.item.NamedBuildItem;
+import org.jboss.builder.item.Named;
 import org.wildfly.common.Assert;
 
 /**
@@ -64,7 +64,7 @@ public final class BuildExecutionBuilder {
      */
     public <T extends BuildItem> BuildExecutionBuilder produce(T item) {
         Assert.checkNotNullParam("item", item);
-        if (item instanceof NamedBuildItem) {
+        if (item instanceof Named<?>) {
             throw new IllegalArgumentException("Cannot produce a named build item without a name");
         }
         produce(new ItemId(item.getClass(), null), item);
@@ -84,7 +84,7 @@ public final class BuildExecutionBuilder {
     public <T extends BuildItem> BuildExecutionBuilder produce(Class<T> type, T item) {
         Assert.checkNotNullParam("type", type);
         Assert.checkNotNullParam("item", item);
-        if (NamedBuildItem.class.isAssignableFrom(type)) {
+        if (Named.class.isAssignableFrom(type)) {
             throw new IllegalArgumentException("Cannot produce a named build item without a name");
         }
         produce(new ItemId(type, null), item);
@@ -100,9 +100,12 @@ public final class BuildExecutionBuilder {
      * @throws IllegalArgumentException if this deployer chain was not declared to initially produce {@code type},
      *      or if the item does not allow multiplicity but this method is called more than one time
      */
-    public <N, T extends NamedBuildItem<N>> BuildExecutionBuilder produce(N name, T item) {
+    public <N, T extends BuildItem & Named<N>> BuildExecutionBuilder produce(N name, T item) {
         Assert.checkNotNullParam("name", name);
         Assert.checkNotNullParam("item", item);
+        if (! (name instanceof Enum<?>)) {
+            throw new IllegalArgumentException("Names must be enum constants");
+        }
         produce(new ItemId(item.getClass(), name), item);
         return this;
     }
@@ -118,10 +121,13 @@ public final class BuildExecutionBuilder {
      *  or if {@code type} is {@code null}, or if the item does not allow multiplicity but this method is called
      *  more than one time
      */
-    public <N, T extends NamedBuildItem<N>> BuildExecutionBuilder produce(Class<T> type, N name, T item) {
+    public <N, T extends BuildItem & Named<N>> BuildExecutionBuilder produce(Class<T> type, N name, T item) {
         Assert.checkNotNullParam("type", type);
         Assert.checkNotNullParam("name", name);
         Assert.checkNotNullParam("item", item);
+        if (! (name instanceof Enum<?>)) {
+            throw new IllegalArgumentException("Names must be enum constants");
+        }
         produce(new ItemId(type, name), item);
         return this;
     }
