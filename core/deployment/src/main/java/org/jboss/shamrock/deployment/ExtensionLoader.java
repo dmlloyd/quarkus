@@ -4,8 +4,6 @@ import static org.jboss.shamrock.deployment.util.ReflectUtil.isBuildProducerOf;
 import static org.jboss.shamrock.deployment.util.ReflectUtil.isConsumerOf;
 import static org.jboss.shamrock.deployment.util.ReflectUtil.isListOf;
 import static org.jboss.shamrock.deployment.util.ReflectUtil.isOptionalOf;
-import static org.jboss.shamrock.deployment.util.ReflectUtil.isSupplierOf;
-import static org.jboss.shamrock.deployment.util.ReflectUtil.isSupplierOfOptionalOf;
 import static org.jboss.shamrock.deployment.util.ReflectUtil.rawTypeExtends;
 import static org.jboss.shamrock.deployment.util.ReflectUtil.rawTypeIs;
 import static org.jboss.shamrock.deployment.util.ReflectUtil.rawTypeOf;
@@ -32,7 +30,6 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 import org.jboss.builder.BuildChainBuilder;
 import org.jboss.builder.BuildContext;
@@ -141,6 +138,19 @@ public final class ExtensionLoader {
         }
     }
 
+    private static void doProduce(BuildContext bc, BuildItem item, Object name) {
+        if (name == null) {
+            bc.produce(item);
+        } else {
+            doProduce0(bc, item, name);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <N, T extends BuildItem & Named<N>> void doProduce0(BuildContext bc, BuildItem item, Object name) {
+        bc.produce((N) name, (T) item);
+    }
+
     /**
      * Load all the build steps from the given class loader.
      *
@@ -202,11 +212,13 @@ public final class ExtensionLoader {
                 } else if (isConsumerOf(parameterType, BuildItem.class)) {
                     final Class<? extends BuildItem> buildItemClass = rawTypeOfParameter(parameterType, 0).asSubclass(BuildItem.class);
                     stepConfig = stepConfig.andThen(bsb -> bsb.produces(buildItemClass));
-                    ctorParamFns.add(bc -> (Consumer<? extends BuildItem>) bc::produce);
+                    final Object name = getNameFromSelector(buildItemClass, selectorFor(parameter));
+                    ctorParamFns.add(bc -> (Consumer<? extends BuildItem>) item -> doProduce(bc, item, name));
                 } else if (isBuildProducerOf(parameterType, BuildItem.class)) {
                     final Class<? extends BuildItem> buildItemClass = rawTypeOfParameter(parameterType, 0).asSubclass(BuildItem.class);
                     stepConfig = stepConfig.andThen(bsb -> bsb.produces(buildItemClass));
-                    ctorParamFns.add(bc -> (BuildProducer<? extends BuildItem>) bc::produce);
+                    final Object name = getNameFromSelector(buildItemClass, selectorFor(parameter));
+                    ctorParamFns.add(bc -> (BuildProducer<? extends BuildItem>) item -> doProduce(bc, item, name));
                 } else if (isOptionalOf(parameterType, SimpleBuildItem.class)) {
                     final Class<? extends SimpleBuildItem> buildItemClass = rawTypeOfParameter(parameterType, 0).asSubclass(SimpleBuildItem.class);
                     stepConfig = stepConfig.andThen(bsb -> bsb.consumes(buildItemClass, ConsumeFlags.of(ConsumeFlag.OPTIONAL)));
@@ -256,11 +268,13 @@ public final class ExtensionLoader {
             } else if (isConsumerOf(fieldType, BuildItem.class)) {
                 final Class<? extends BuildItem> buildItemClass = rawTypeOfParameter(fieldType, 0).asSubclass(BuildItem.class);
                 stepConfig = stepConfig.andThen(bsb -> bsb.produces(buildItemClass));
-                stepInstanceSetup = stepInstanceSetup.andThen((bc, o) -> ReflectUtil.setFieldVal(field, o, (Consumer<? extends BuildItem>) bc::produce));
+                final Object name = getNameFromSelector(buildItemClass, selectorFor(field));
+                stepInstanceSetup = stepInstanceSetup.andThen((bc, o) -> ReflectUtil.setFieldVal(field, o, (Consumer<? extends BuildItem>) item -> doProduce(bc, item, name)));
             } else if (isBuildProducerOf(fieldType, BuildItem.class)) {
                 final Class<? extends BuildItem> buildItemClass = rawTypeOfParameter(fieldType, 0).asSubclass(BuildItem.class);
                 stepConfig = stepConfig.andThen(bsb -> bsb.produces(buildItemClass));
-                stepInstanceSetup = stepInstanceSetup.andThen((bc, o) -> ReflectUtil.setFieldVal(field, o, (BuildProducer<? extends BuildItem>) bc::produce));
+                final Object name = getNameFromSelector(buildItemClass, selectorFor(field));
+                stepInstanceSetup = stepInstanceSetup.andThen((bc, o) -> ReflectUtil.setFieldVal(field, o, (BuildProducer<? extends BuildItem>) item -> doProduce(bc, item, name)));
             } else if (isOptionalOf(fieldType, SimpleBuildItem.class)) {
                 final Class<? extends SimpleBuildItem> buildItemClass = rawTypeOfParameter(fieldType, 0).asSubclass(SimpleBuildItem.class);
                 stepConfig = stepConfig.andThen(bsb -> bsb.consumes(buildItemClass, ConsumeFlags.of(ConsumeFlag.OPTIONAL)));
@@ -345,11 +359,13 @@ public final class ExtensionLoader {
                     } else if (isConsumerOf(parameterType, BuildItem.class)) {
                         final Class<? extends BuildItem> buildItemClass = rawTypeOfParameter(parameterType, 0).asSubclass(BuildItem.class);
                         methodStepConfig = methodStepConfig.andThen(bsb -> bsb.produces(buildItemClass));
-                        methodParamFns.add((bc, bri) -> (Consumer<? extends BuildItem>) bc::produce);
+                        final Object name = getNameFromSelector(buildItemClass, selectorFor(parameter));
+                        methodParamFns.add((bc, bri) -> (Consumer<? extends BuildItem>) item -> doProduce(bc, item, name));
                     } else if (isBuildProducerOf(parameterType, BuildItem.class)) {
                         final Class<? extends BuildItem> buildItemClass = rawTypeOfParameter(parameterType, 0).asSubclass(BuildItem.class);
                         methodStepConfig = methodStepConfig.andThen(bsb -> bsb.produces(buildItemClass));
-                        methodParamFns.add((bc, bri) -> (BuildProducer<? extends BuildItem>) bc::produce);
+                        final Object name = getNameFromSelector(buildItemClass, selectorFor(parameter));
+                        methodParamFns.add((bc, bri) -> (BuildProducer<? extends BuildItem>) item -> doProduce(bc, item, name));
                     } else if (isOptionalOf(parameterType, SimpleBuildItem.class)) {
                         final Class<? extends SimpleBuildItem> buildItemClass = rawTypeOfParameter(parameterType, 0).asSubclass(SimpleBuildItem.class);
                         methodStepConfig = methodStepConfig.andThen(bsb -> bsb.consumes(buildItemClass, ConsumeFlags.of(ConsumeFlag.OPTIONAL)));
@@ -387,14 +403,20 @@ public final class ExtensionLoader {
             if (rawTypeIs(returnType, void.class)) {
                 resultConsumer = Functions.discardingBiConsumer();
             } else if (rawTypeExtends(returnType, BuildItem.class)) {
-                methodStepConfig = methodStepConfig.andThen(bsb -> bsb.produces(method.getReturnType().asSubclass(BuildItem.class)));
-                resultConsumer = (bc, o) -> { if (o != null) bc.produce((BuildItem) o); };
+                final Class<? extends BuildItem> buildItemClass = method.getReturnType().asSubclass(BuildItem.class);
+                methodStepConfig = methodStepConfig.andThen(bsb -> bsb.produces(buildItemClass));
+                final Object name = getNameFromSelector(buildItemClass, selectorFor(method));
+                resultConsumer = (bc, o) -> { if (o != null) doProduce(bc, (BuildItem)o, name); };
             } else if (isOptionalOf(returnType, BuildItem.class)) {
-                methodStepConfig = methodStepConfig.andThen(bsb -> bsb.produces(rawTypeOfParameter(returnType, 0).asSubclass(BuildItem.class)));
-                resultConsumer = (bc, o) -> ((Optional<? extends BuildItem>) o).ifPresent(bc::produce);
+                final Class<? extends BuildItem> buildItemClass = rawTypeOfParameter(returnType, 0).asSubclass(BuildItem.class);
+                methodStepConfig = methodStepConfig.andThen(bsb -> bsb.produces(buildItemClass));
+                final Object name = getNameFromSelector(buildItemClass, selectorFor(method));
+                resultConsumer = (bc, o) -> ((Optional<? extends BuildItem>) o).ifPresent(item -> doProduce(bc, item, name));
             } else if (isListOf(returnType, MultiBuildItem.class)) {
-                methodStepConfig = methodStepConfig.andThen(bsb -> bsb.produces(rawTypeOfParameter(returnType, 0).asSubclass(MultiBuildItem.class)));
-                resultConsumer = (bc, o) -> { if (o != null) bc.produce((List<? extends MultiBuildItem>) o); };
+                final Class<? extends MultiBuildItem> buildItemClass = rawTypeOfParameter(returnType, 0).asSubclass(MultiBuildItem.class);
+                methodStepConfig = methodStepConfig.andThen(bsb -> bsb.produces(buildItemClass));
+                final Object name = getNameFromSelector(buildItemClass, selectorFor(method));
+                resultConsumer = (bc, o) -> { if (o != null) for (BuildItem item : (List<? extends MultiBuildItem>) o) doProduce(bc, item, name); };
             } else {
                 throw reportError(method, "Unsupported method return type " + returnType);
             }
