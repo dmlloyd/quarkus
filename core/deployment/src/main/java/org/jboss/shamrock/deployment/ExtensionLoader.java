@@ -10,8 +10,10 @@ import static org.jboss.shamrock.deployment.util.ReflectUtil.rawTypeExtends;
 import static org.jboss.shamrock.deployment.util.ReflectUtil.rawTypeIs;
 import static org.jboss.shamrock.deployment.util.ReflectUtil.rawTypeOf;
 import static org.jboss.shamrock.deployment.util.ReflectUtil.rawTypeOfParameter;
+import static org.jboss.shamrock.deployment.util.ReflectUtil.toError;
 
 import java.io.IOException;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -41,10 +43,12 @@ import org.jboss.builder.ProduceFlag;
 import org.jboss.builder.ProduceFlags;
 import org.jboss.builder.item.BuildItem;
 import org.jboss.builder.item.MultiBuildItem;
+import org.jboss.builder.item.Named;
 import org.jboss.builder.item.SimpleBuildItem;
 import org.jboss.shamrock.deployment.annotations.BuildProducer;
 import org.jboss.shamrock.deployment.annotations.BuildStep;
 import org.jboss.shamrock.deployment.annotations.ExecutionTime;
+import io.quarkus.deployment.annotations.NameSelector;
 import org.jboss.shamrock.deployment.annotations.Record;
 import org.jboss.shamrock.deployment.builditem.AdditionalApplicationArchiveMarkerBuildItem;
 import org.jboss.shamrock.deployment.builditem.CapabilityBuildItem;
@@ -67,6 +71,74 @@ public final class ExtensionLoader {
 
     private static boolean isTemplate(AnnotatedElement element) {
         return element.isAnnotationPresent(Template.class);
+    }
+
+    private static boolean isSelector(Annotation annotation) {
+        return annotation.getClass().isAnnotationPresent(NameSelector.class);
+    }
+
+    private static Annotation selectorFor(AnnotatedElement element) {
+        Annotation selector = null;
+        for (Annotation annotation : element.getAnnotations()) {
+            if (isSelector(annotation)) {
+                if (selector != null) {
+                    throw reportError(element, "Multiple name selector annotations present (found " + selector + " and " + annotation + ")");
+                }
+                selector = annotation;
+            }
+        }
+        return selector;
+    }
+
+    private static Object getNameFromSelector(Class<? extends BuildItem> buildItemClass, Annotation selector) {
+        if (Named.class.isAssignableFrom(buildItemClass)) {
+            if (selector == null) {
+                throw new IllegalArgumentException("Cannot consume a named build item without a name");
+            } else {
+                try {
+                    return selector.getClass().getMethod("value").invoke(selector);
+                } catch (IllegalAccessException e) {
+                    throw toError(e);
+                } catch (InvocationTargetException e) {
+                    throw new IllegalStateException(e);
+                } catch (NoSuchMethodException e) {
+                    throw toError(e);
+                }
+            }
+        } else {
+            if (selector != null) {
+                throw new IllegalArgumentException("Build item consumed with name");
+            }
+            return null;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <N, T extends SimpleBuildItem & Named<N>> T doConsume0(BuildContext bc, Class<? extends SimpleBuildItem> clazz, Object name) {
+        return bc.consume((Class<T>) clazz, (N) name);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Object doConsume(BuildContext bc, Class<? extends SimpleBuildItem> clazz, Object name) {
+        if (name == null) {
+            return bc.consume(clazz);
+        } else {
+            return doConsume0(bc, clazz, name);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <N, T extends MultiBuildItem & Named<N>> T doConsumeMulti0(BuildContext bc, Class<? extends MultiBuildItem> clazz, Object name) {
+        return bc.consume((Class<T>) clazz, (N) name);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Object doConsumeMulti(BuildContext bc, Class<? extends MultiBuildItem> clazz, Object name) {
+        if (name == null) {
+            return bc.consumeMulti(clazz);
+        } else {
+            return doConsumeMulti0(bc, clazz, name);
+        }
     }
 
     /**
@@ -115,16 +187,18 @@ public final class ExtensionLoader {
         } else {
             ctorParamFns = new ArrayList<>(ctorParameters.length);
             for (Parameter parameter : ctorParameters) {
-                Type parameterType = parameter.getParameterizedType();
+                final Type parameterType = parameter.getParameterizedType();
                 final Class<?> parameterClass = parameter.getType();
                 if (rawTypeExtends(parameterType, SimpleBuildItem.class)) {
                     final Class<? extends SimpleBuildItem> buildItemClass = rawTypeOf(parameterType).asSubclass(SimpleBuildItem.class);
                     stepConfig = stepConfig.andThen(bsb -> bsb.consumes(buildItemClass));
-                    ctorParamFns.add(bc -> bc.consume(buildItemClass));
+                    final Object name = getNameFromSelector(buildItemClass, selectorFor(parameter));
+                    ctorParamFns.add(bc -> doConsume(bc, buildItemClass, name));
                 } else if (isListOf(parameterType, MultiBuildItem.class)) {
                     final Class<? extends MultiBuildItem> buildItemClass = rawTypeOfParameter(parameterType, 0).asSubclass(MultiBuildItem.class);
                     stepConfig = stepConfig.andThen(bsb -> bsb.consumes(buildItemClass));
-                    ctorParamFns.add(bc -> bc.consumeMulti(buildItemClass));
+                    final Object name = getNameFromSelector(buildItemClass, selectorFor(parameter));
+                    ctorParamFns.add(bc -> doConsumeMulti(bc, buildItemClass, name));
                 } else if (isConsumerOf(parameterType, BuildItem.class)) {
                     final Class<? extends BuildItem> buildItemClass = rawTypeOfParameter(parameterType, 0).asSubclass(BuildItem.class);
                     stepConfig = stepConfig.andThen(bsb -> bsb.produces(buildItemClass));
@@ -136,15 +210,8 @@ public final class ExtensionLoader {
                 } else if (isOptionalOf(parameterType, SimpleBuildItem.class)) {
                     final Class<? extends SimpleBuildItem> buildItemClass = rawTypeOfParameter(parameterType, 0).asSubclass(SimpleBuildItem.class);
                     stepConfig = stepConfig.andThen(bsb -> bsb.consumes(buildItemClass, ConsumeFlags.of(ConsumeFlag.OPTIONAL)));
-                    ctorParamFns.add(bc -> Optional.ofNullable(bc.consume(buildItemClass)));
-                } else if (isSupplierOf(parameterType, SimpleBuildItem.class)) {
-                    final Class<? extends SimpleBuildItem> buildItemClass = rawTypeOfParameter(parameterType, 0).asSubclass(SimpleBuildItem.class);
-                    stepConfig = stepConfig.andThen(bsb -> bsb.consumes(buildItemClass));
-                    ctorParamFns.add(bc -> (Supplier<? extends SimpleBuildItem>) () -> bc.consume(buildItemClass));
-                } else if (isSupplierOfOptionalOf(parameterType, SimpleBuildItem.class)) {
-                    final Class<? extends SimpleBuildItem> buildItemClass = rawTypeOfParameter(rawTypeOfParameter(parameterType, 0), 0).asSubclass(SimpleBuildItem.class);
-                    stepConfig = stepConfig.andThen(bsb -> bsb.consumes(buildItemClass, ConsumeFlags.of(ConsumeFlag.OPTIONAL)));
-                    ctorParamFns.add(bc -> (Supplier<Optional<? extends SimpleBuildItem>>) () -> Optional.ofNullable(bc.consume(buildItemClass)));
+                    final Object name = getNameFromSelector(buildItemClass, selectorFor(parameter));
+                    ctorParamFns.add(bc -> Optional.ofNullable(doConsume(bc, buildItemClass, name)));
                 } else if (rawTypeOf(parameterType) == Executor.class) {
                     ctorParamFns.add(BuildContext::getExecutor);
                 } else if (parameterClass.isAnnotationPresent(ConfigRoot.class)) {
@@ -179,11 +246,13 @@ public final class ExtensionLoader {
             if (rawTypeExtends(fieldType, SimpleBuildItem.class)) {
                 final Class<? extends SimpleBuildItem> buildItemClass = rawTypeOf(fieldType).asSubclass(SimpleBuildItem.class);
                 stepConfig = stepConfig.andThen(bsb -> bsb.consumes(buildItemClass));
-                stepInstanceSetup = stepInstanceSetup.andThen((bc, o) -> ReflectUtil.setFieldVal(field, o, bc.consume(buildItemClass)));
+                final Object name = getNameFromSelector(buildItemClass, selectorFor(field));
+                stepInstanceSetup = stepInstanceSetup.andThen((bc, o) -> ReflectUtil.setFieldVal(field, o, doConsume(bc, buildItemClass, name)));
             } else if (isListOf(fieldType, MultiBuildItem.class)) {
                 final Class<? extends MultiBuildItem> buildItemClass = rawTypeOfParameter(fieldType, 0).asSubclass(MultiBuildItem.class);
                 stepConfig = stepConfig.andThen(bsb -> bsb.consumes(buildItemClass));
-                stepInstanceSetup = stepInstanceSetup.andThen((bc, o) -> ReflectUtil.setFieldVal(field, o, bc.consumeMulti(buildItemClass)));
+                final Object name = getNameFromSelector(buildItemClass, selectorFor(field));
+                stepInstanceSetup = stepInstanceSetup.andThen((bc, o) -> ReflectUtil.setFieldVal(field, o, doConsumeMulti(bc, buildItemClass, name)));
             } else if (isConsumerOf(fieldType, BuildItem.class)) {
                 final Class<? extends BuildItem> buildItemClass = rawTypeOfParameter(fieldType, 0).asSubclass(BuildItem.class);
                 stepConfig = stepConfig.andThen(bsb -> bsb.produces(buildItemClass));
@@ -195,15 +264,8 @@ public final class ExtensionLoader {
             } else if (isOptionalOf(fieldType, SimpleBuildItem.class)) {
                 final Class<? extends SimpleBuildItem> buildItemClass = rawTypeOfParameter(fieldType, 0).asSubclass(SimpleBuildItem.class);
                 stepConfig = stepConfig.andThen(bsb -> bsb.consumes(buildItemClass, ConsumeFlags.of(ConsumeFlag.OPTIONAL)));
-                stepInstanceSetup = stepInstanceSetup.andThen((bc, o) -> ReflectUtil.setFieldVal(field, o, Optional.ofNullable(bc.consume(buildItemClass))));
-            } else if (isSupplierOf(fieldType, SimpleBuildItem.class)) {
-                final Class<? extends SimpleBuildItem> buildItemClass = rawTypeOfParameter(fieldType, 0).asSubclass(SimpleBuildItem.class);
-                stepConfig = stepConfig.andThen(bsb -> bsb.consumes(buildItemClass));
-                stepInstanceSetup = stepInstanceSetup.andThen((bc, o) -> ReflectUtil.setFieldVal(field, o, (Supplier<? extends SimpleBuildItem>) () -> bc.consume(buildItemClass)));
-            } else if (isSupplierOfOptionalOf(fieldType, SimpleBuildItem.class)) {
-                final Class<? extends SimpleBuildItem> buildItemClass = rawTypeOfParameter(rawTypeOfParameter(fieldType, 0), 0).asSubclass(SimpleBuildItem.class);
-                stepConfig = stepConfig.andThen(bsb -> bsb.consumes(buildItemClass, ConsumeFlags.of(ConsumeFlag.OPTIONAL)));
-                stepInstanceSetup = stepInstanceSetup.andThen((bc, o) -> ReflectUtil.setFieldVal(field, o, (Supplier<Optional<? extends SimpleBuildItem>>) () -> Optional.ofNullable(bc.consume(buildItemClass))));
+                final Object name = getNameFromSelector(buildItemClass, selectorFor(field));
+                stepInstanceSetup = stepInstanceSetup.andThen((bc, o) -> ReflectUtil.setFieldVal(field, o, Optional.ofNullable(doConsume(bc, buildItemClass, name))));
             } else if (fieldClass == Executor.class) {
                 stepInstanceSetup = stepInstanceSetup.andThen((bc, o) -> ReflectUtil.setFieldVal(field, o, bc.getExecutor()));
             } else if (fieldClass.isAnnotationPresent(ConfigRoot.class)) {
@@ -273,11 +335,13 @@ public final class ExtensionLoader {
                     if (rawTypeExtends(parameterType, SimpleBuildItem.class)) {
                         final Class<? extends SimpleBuildItem> buildItemClass = parameterClass.asSubclass(SimpleBuildItem.class);
                         methodStepConfig = methodStepConfig.andThen(bsb -> bsb.consumes(buildItemClass));
-                        methodParamFns.add((bc, bri) -> bc.consume(buildItemClass));
+                        final Object name = getNameFromSelector(buildItemClass, selectorFor(parameter));
+                        methodParamFns.add((bc, bri) -> doConsume(bc, buildItemClass, name));
                     } else if (isListOf(parameterType, MultiBuildItem.class)) {
                         final Class<? extends MultiBuildItem> buildItemClass = rawTypeOfParameter(parameterType, 0).asSubclass(MultiBuildItem.class);
                         methodStepConfig = methodStepConfig.andThen(bsb -> bsb.consumes(buildItemClass));
-                        methodParamFns.add((bc, bri) -> bc.consumeMulti(buildItemClass));
+                        final Object name = getNameFromSelector(buildItemClass, selectorFor(parameter));
+                        methodParamFns.add((bc, bri) -> doConsumeMulti(bc, buildItemClass, name));
                     } else if (isConsumerOf(parameterType, BuildItem.class)) {
                         final Class<? extends BuildItem> buildItemClass = rawTypeOfParameter(parameterType, 0).asSubclass(BuildItem.class);
                         methodStepConfig = methodStepConfig.andThen(bsb -> bsb.produces(buildItemClass));
@@ -289,15 +353,8 @@ public final class ExtensionLoader {
                     } else if (isOptionalOf(parameterType, SimpleBuildItem.class)) {
                         final Class<? extends SimpleBuildItem> buildItemClass = rawTypeOfParameter(parameterType, 0).asSubclass(SimpleBuildItem.class);
                         methodStepConfig = methodStepConfig.andThen(bsb -> bsb.consumes(buildItemClass, ConsumeFlags.of(ConsumeFlag.OPTIONAL)));
-                        methodParamFns.add((bc, bri) -> Optional.ofNullable(bc.consume(buildItemClass)));
-                    } else if (isSupplierOf(parameterType, SimpleBuildItem.class)) {
-                        final Class<? extends SimpleBuildItem> buildItemClass = rawTypeOfParameter(parameterType, 0).asSubclass(SimpleBuildItem.class);
-                        methodStepConfig = methodStepConfig.andThen(bsb -> bsb.consumes(buildItemClass));
-                        methodParamFns.add((bc, bri) -> (Supplier<? extends SimpleBuildItem>) () -> bc.consume(buildItemClass));
-                    } else if (isSupplierOfOptionalOf(parameterType, SimpleBuildItem.class)) {
-                        final Class<? extends SimpleBuildItem> buildItemClass = rawTypeOfParameter(rawTypeOfParameter(parameterType, 0), 0).asSubclass(SimpleBuildItem.class);
-                        methodStepConfig = methodStepConfig.andThen(bsb -> bsb.consumes(buildItemClass, ConsumeFlags.of(ConsumeFlag.OPTIONAL)));
-                        methodParamFns.add((bc, bri) -> (Supplier<Optional<? extends SimpleBuildItem>>) () -> Optional.ofNullable(bc.consume(buildItemClass)));
+                        final Object name = getNameFromSelector(buildItemClass, selectorFor(parameter));
+                        methodParamFns.add((bc, bri) -> Optional.ofNullable(doConsume(bc, buildItemClass, name)));
                     } else if (rawTypeOf(parameterType) == Executor.class) {
                         methodParamFns.add((bc, bri) -> bc.getExecutor());
                     } else if (parameterClass.isAnnotationPresent(ConfigRoot.class)) {
