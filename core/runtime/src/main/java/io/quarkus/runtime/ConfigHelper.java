@@ -16,28 +16,17 @@
 
 package io.quarkus.runtime;
 
-import java.util.Optional;
-
-import org.eclipse.microprofile.config.ConfigProvider;
+import org.jboss.logging.Logger;
 
 public class ConfigHelper {
+
+    private static final Logger log = Logger.getLogger("io.quarkus.config");
 
     private ConfigHelper() {
 
     }
 
-    public static String getString(String key, String defaultValue) {
-        Optional<String> val = ConfigProvider.getConfig().getOptionalValue(key, String.class);
-        return val.orElse(defaultValue);
-    }
-
-    public static Integer getInteger(String key, int defaultValue) {
-        Optional<Integer> val = ConfigProvider.getConfig().getOptionalValue(key, Integer.class);
-        return val.orElse(defaultValue);
-    }
-
-    public static Boolean getBoolean(String key, boolean defaultValue) {
-        Optional<Boolean> val = ConfigProvider.getConfig().getOptionalValue(key, Boolean.class);
-        return val.orElse(defaultValue);
+    public static void logUnknownConfig(final String propertyName) {
+        log.warnf("Configuration property not recognized: %s", propertyName);
     }
 }

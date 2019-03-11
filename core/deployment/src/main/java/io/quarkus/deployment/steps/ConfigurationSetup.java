@@ -59,6 +59,7 @@ import io.quarkus.gizmo.FieldDescriptor;
 import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.MethodDescriptor;
 import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.runtime.ConfigHelper;
 import io.quarkus.runtime.annotations.ConfigPhase;
 import io.quarkus.runtime.configuration.ApplicationPropertiesConfigSource;
 import io.quarkus.runtime.configuration.CidrAddressConverter;
@@ -117,6 +118,9 @@ public class ConfigurationSetup {
             boolean.class);
     private static final MethodDescriptor SRCB_WITH_WRAPPER = MethodDescriptor.ofMethod(SmallRyeConfigBuilder.class,
             "withWrapper", SmallRyeConfigBuilder.class, UnaryOperator.class);
+    private static final MethodDescriptor CH_LOG_UNKNOWN = MethodDescriptor.ofMethod(ConfigHelper.class, "logUnknownConfig",
+            void.class, String.class);
+    private static final MethodDescriptor OBJ_TO_STRING = MethodDescriptor.ofMethod(Object.class, "toString", String.class);
 
     public static final MethodDescriptor GET_ROOT_METHOD = MethodDescriptor.ofMethod(CONFIG_HELPER, "getRoot", CONFIG_ROOT);
 
@@ -497,7 +501,7 @@ public class ConfigurationSetup {
                     // (exact match generated code)
                     matched.generateAcceptConfigurationValue(matchedBody, keyIter, config);
                 } else {
-                    // todo: unknown name warning goes here
+                    body.invokeStaticMethod(CH_LOG_UNKNOWN, body.invokeVirtualMethod(OBJ_TO_STRING, keyIter));
                 }
                 // return;
                 matchedBody.returnValue(null);
@@ -545,7 +549,7 @@ public class ConfigurationSetup {
                     matchedBody.returnValue(null);
                 }
             }
-            // todo: unknown name warning goes here
+            body.invokeStaticMethod(CH_LOG_UNKNOWN, body.invokeVirtualMethod(OBJ_TO_STRING, keyIter));
             body.returnValue(null);
             final MethodDescriptor md = body.getMethodDescriptor();
             parseMethodCache.put(methodNameStr, md);
