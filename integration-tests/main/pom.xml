@@ -209,6 +209,12 @@
                     <name>native</name>
                 </property>
             </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>quarkus-native-image</artifactId>
+                </dependency>
+            </dependencies>
             <build>
                 <plugins>
                     <plugin>
@@ -224,28 +230,6 @@
                                     <systemProperties>
                                         <native.image.path>${project.build.directory}/${project.build.finalName}-runner</native.image.path>
                                     </systemProperties>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>${project.groupId}</groupId>
-                        <artifactId>quarkus-maven-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <id>native-image</id>
-                                <goals>
-                                    <goal>native-image</goal>
-                                </goals>
-                                <configuration>
-                                    <addAllCharsets>true</addAllCharsets>
-                                    <cleanupServer>true</cleanupServer>
-                                    <enableHttpUrlHandler>true</enableHttpUrlHandler>
-                                    <!-- Requires Quarkus Graal fork to work, will fail otherwise
-                                      <enableRetainedHeapReporting>true</enableRetainedHeapReporting>
-                                      <enableCodeSizeReporting>true</enableCodeSizeReporting>
-                                    -->
-                                    <graalvmHome>${graalvmHome}</graalvmHome>
                                 </configuration>
                             </execution>
                         </executions>

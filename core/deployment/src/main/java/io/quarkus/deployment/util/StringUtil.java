@@ -97,6 +97,19 @@ public final class StringUtil {
         };
     }
 
+    public static String join(String delim, String... strings) {
+        final StringBuilder b = new StringBuilder();
+        int idx = 0;
+        if (idx < strings.length) {
+            b.append(strings[idx++]);
+            while (idx < strings.length) {
+                b.append(delim);
+                b.append(strings[idx++]);
+            }
+        }
+        return b.toString();
+    }
+
     public static String join(String delim, Iterator<String> it) {
         final StringBuilder b = new StringBuilder();
         if (it.hasNext()) {

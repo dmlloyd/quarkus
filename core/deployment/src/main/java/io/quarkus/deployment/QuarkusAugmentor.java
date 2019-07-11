@@ -19,6 +19,7 @@ import io.quarkus.builder.BuildResult;
 import io.quarkus.builder.item.BuildItem;
 import io.quarkus.deployment.builditem.AdditionalApplicationArchiveBuildItem;
 import io.quarkus.deployment.builditem.ArchiveRootBuildItem;
+import io.quarkus.deployment.builditem.AugmentPhaseBuildItem;
 import io.quarkus.deployment.builditem.ClassOutputBuildItem;
 import io.quarkus.deployment.builditem.ExtensionClassLoaderBuildItem;
 import io.quarkus.deployment.builditem.GeneratedClassBuildItem;
@@ -78,7 +79,8 @@ public class QuarkusAugmentor {
                 chainBuilder.addFinal(i);
             }
             chainBuilder.addFinal(GeneratedClassBuildItem.class)
-                    .addFinal(GeneratedResourceBuildItem.class);
+                    .addFinal(GeneratedResourceBuildItem.class)
+                    .addFinal(AugmentPhaseBuildItem.class);
 
             for (Consumer<BuildChainBuilder> i : buildChainCustomizers) {
                 i.accept(chainBuilder);
