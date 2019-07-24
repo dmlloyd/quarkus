@@ -1,8 +1,8 @@
 package io.quarkus.scheduler.deployment;
 
+import static com.cronutils.model.CronType.QUARTZ;
 import static io.quarkus.deployment.annotations.ExecutionTime.STATIC_INIT;
 
-import java.text.ParseException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -13,6 +13,9 @@ import java.util.Map;
 
 import javax.inject.Singleton;
 
+import com.cronutils.model.definition.CronDefinitionBuilder;
+import com.cronutils.parser.CronParser;
+
 import org.jboss.jandex.AnnotationInstance;
 import org.jboss.jandex.AnnotationValue;
 import org.jboss.jandex.DotName;
@@ -20,10 +23,6 @@ import org.jboss.jandex.MethodInfo;
 import org.jboss.jandex.Type;
 import org.jboss.jandex.Type.Kind;
 import org.jboss.logging.Logger;
-import org.quartz.CronExpression;
-import org.quartz.simpl.CascadingClassLoadHelper;
-import org.quartz.simpl.RAMJobStore;
-import org.quartz.simpl.SimpleThreadPool;
 
 import io.quarkus.arc.Arc;
 import io.quarkus.arc.ArcContainer;
@@ -49,7 +48,6 @@ import io.quarkus.deployment.builditem.AnnotationProxyBuildItem;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
 import io.quarkus.deployment.builditem.GeneratedClassBuildItem;
 import io.quarkus.deployment.builditem.substrate.ReflectiveClassBuildItem;
-import io.quarkus.deployment.logging.LogCleanupFilterBuildItem;
 import io.quarkus.deployment.util.HashUtil;
 import io.quarkus.gizmo.ClassCreator;
 import io.quarkus.gizmo.ClassOutput;
@@ -58,7 +56,7 @@ import io.quarkus.gizmo.MethodDescriptor;
 import io.quarkus.gizmo.ResultHandle;
 import io.quarkus.scheduler.Scheduled;
 import io.quarkus.scheduler.ScheduledExecution;
-import io.quarkus.scheduler.runtime.QuartzScheduler;
+import io.quarkus.scheduler.runtime.SchedulerImpl;
 import io.quarkus.scheduler.runtime.ScheduledInvoker;
 import io.quarkus.scheduler.runtime.SchedulerConfiguration;
 import io.quarkus.scheduler.runtime.SchedulerDeploymentRecorder;
@@ -80,7 +78,7 @@ public class SchedulerProcessor {
 
     @BuildStep
     AdditionalBeanBuildItem beans() {
-        return new AdditionalBeanBuildItem(SchedulerConfiguration.class, QuartzScheduler.class);
+        return new AdditionalBeanBuildItem(SchedulerConfiguration.class, SchedulerImpl.class);
     }
 
     @BuildStep
@@ -113,15 +111,6 @@ public class SchedulerProcessor {
                 }
             }
         });
-    }
-
-    @BuildStep
-    List<ReflectiveClassBuildItem> reflectiveClasses() {
-        List<ReflectiveClassBuildItem> reflectiveClasses = new ArrayList<>();
-        reflectiveClasses.add(new ReflectiveClassBuildItem(false, false, CascadingClassLoadHelper.class.getName()));
-        reflectiveClasses.add(new ReflectiveClassBuildItem(true, false, SimpleThreadPool.class.getName()));
-        reflectiveClasses.add(new ReflectiveClassBuildItem(true, false, RAMJobStore.class.getName()));
-        return reflectiveClasses;
     }
 
     @BuildStep
@@ -224,28 +213,6 @@ public class SchedulerProcessor {
         recorder.registerSchedules(scheduleConfigurations, beanContainer.getValue());
     }
 
-    @BuildStep
-    public void logCleanup(BuildProducer<LogCleanupFilterBuildItem> logCleanupFilter) {
-        logCleanupFilter.produce(new LogCleanupFilterBuildItem("org.quartz.impl.StdSchedulerFactory",
-                "Quartz scheduler version:",
-                // no need to log if it's the default
-                "Using default implementation for",
-                "Quartz scheduler 'DefaultQuartzScheduler'"));
-
-        logCleanupFilter.produce(new LogCleanupFilterBuildItem("org.quartz.core.QuartzScheduler",
-                "Quartz Scheduler v",
-                "JobFactory set to:",
-                "Scheduler meta-data:",
-                // no need to log if it's the default
-                "Scheduler DefaultQuartzScheduler"));
-
-        logCleanupFilter.produce(new LogCleanupFilterBuildItem("org.quartz.simpl.RAMJobStore",
-                "RAMJobStore initialized."));
-
-        logCleanupFilter.produce(new LogCleanupFilterBuildItem("org.quartz.core.SchedulerSignalerImpl",
-                "Initialized Scheduler Signaller of type"));
-    }
-
     private String generateInvoker(BeanInfo bean, MethodInfo method, ClassOutput classOutput) {
 
         String baseName;
@@ -312,8 +279,8 @@ public class SchedulerProcessor {
                 return null;
             }
             try {
-                new CronExpression(cron);
-            } catch (ParseException e) {
+                new CronParser(CronDefinitionBuilder.instanceDefinitionFor(QUARTZ)).parse(cron);
+            } catch (IllegalArgumentException e) {
                 return new IllegalStateException("Invalid cron() expression on: " + schedule, e);
             }
         } else {

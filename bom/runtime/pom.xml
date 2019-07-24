@@ -103,7 +103,6 @@
         <httpclient.version>4.5.9</httpclient.version>
         <httpcore.version>4.4.11</httpcore.version>
         <httpasync.version>4.1.4</httpasync.version>
-        <quartz.version>2.3.1</quartz.version>
         <jakarta-activation.version>1.2.1</jakarta-activation.version>
         <h2.version>1.4.197</h2.version>  <!-- keep 1.4.197 as newer versions have severe regressions -->
         <postgresql-jdbc.version>42.2.5</postgresql-jdbc.version>
@@ -156,6 +155,7 @@
         <kubernetes-client.version>4.3.1</kubernetes-client.version>
         <sundr.version>0.19.1</sundr.version> <!-- this is to avoid annoying pop-up in eclipse about failure to init Velocity logging -->
         <flapdoodle.mongo.version>2.2.0</flapdoodle.mongo.version>
+        <cron-utils.version>9.0.1</cron-utils.version>
     </properties>
 
     <dependencyManagement>
@@ -1688,9 +1688,9 @@
             </dependency>
 
             <dependency>
-                <groupId>org.quartz-scheduler</groupId>
-                <artifactId>quartz</artifactId>
-                <version>${quartz.version}</version>
+                <groupId>com.cronutils</groupId>
+                <artifactId>cron-utils</artifactId>
+                <version>9.0.1</version>
             </dependency>
 
             <dependency>

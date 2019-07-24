@@ -29,18 +29,8 @@
       <artifactId>svm</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.quartz-scheduler</groupId>
-      <artifactId>quartz</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>com.zaxxer</groupId>
-          <artifactId>HikariCP-java6</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.mchange</groupId>
-          <artifactId>c3p0</artifactId>
-        </exclusion>
-      </exclusions>
+      <groupId>com.cronutils</groupId>
+      <artifactId>cron-utils</artifactId>
     </dependency>
     <dependency>
        <groupId>org.jboss.spec.javax.transaction</groupId>

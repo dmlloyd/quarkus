@@ -5,9 +5,11 @@ import io.quarkus.deployment.annotations.ExecutionTime;
 import io.quarkus.deployment.annotations.Record;
 import io.quarkus.deployment.builditem.ExecutorBuildItem;
 import io.quarkus.deployment.builditem.LaunchModeBuildItem;
+import io.quarkus.deployment.builditem.ScheduledExecutorBuildItem;
 import io.quarkus.deployment.builditem.ShutdownContextBuildItem;
 import io.quarkus.deployment.builditem.substrate.RuntimeInitializedClassBuildItem;
 import io.quarkus.runtime.ExecutorRecorder;
+import io.quarkus.runtime.ScheduledThreadPoolConfig;
 import io.quarkus.runtime.ThreadPoolConfig;
 
 /**
@@ -22,6 +24,13 @@ public class ThreadPoolSetup {
             ThreadPoolConfig threadPoolConfig) {
         return new ExecutorBuildItem(
                 recorder.setupRunTime(shutdownContextBuildItem, threadPoolConfig, launchModeBuildItem.getLaunchMode()));
+    }
+
+    @BuildStep
+    @Record(value = ExecutionTime.RUNTIME_INIT, optional = true)
+    public ScheduledExecutorBuildItem createScheduledExecutor(ExecutorRecorder recorder,
+            ShutdownContextBuildItem shutdownContextBuildItem, ScheduledThreadPoolConfig config) {
+        return new ScheduledExecutorBuildItem(recorder.createScheduledExecutor(shutdownContextBuildItem, config));
     }
 
     @BuildStep
