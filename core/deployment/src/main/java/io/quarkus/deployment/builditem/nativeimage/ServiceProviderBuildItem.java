@@ -38,6 +38,10 @@ public final class ServiceProviderBuildItem extends MultiBuildItem {
         });
     }
 
+    public String getServiceInterface() {
+        return serviceInterface;
+    }
+
     public List<String> providers() {
         return providers;
     }

@@ -186,6 +186,7 @@ public class NativeImageBuildStep {
                 command.add("-H:FallbackThreshold=0");
             }
 
+            command.add("-H:+AllowFoldMethods");
             if (nativeConfig.reportErrorsAtRuntime) {
                 command.add("-H:+ReportUnsupportedElementsAtRuntime");
             }

@@ -146,11 +146,6 @@ public class NativeImageAutoFeatureStep {
             }
         }
 
-        for (ServiceProviderBuildItem i : serviceProviderBuildItems) {
-            overallCatch.invokeStaticMethod(ofMethod(ResourceHelper.class, "registerResources", void.class, String.class),
-                    overallCatch.load(i.serviceDescriptorFile()));
-        }
-
         if (!resourceBundles.isEmpty()) {
             ResultHandle locClass = overallCatch.loadClass(LOCALIZATION_SUPPORT);
 
@@ -186,11 +181,6 @@ public class NativeImageAutoFeatureStep {
         }
         for (ReflectiveMethodBuildItem i : reflectiveMethods) {
             addReflectiveMethod(reflectiveClasses, i);
-        }
-
-        for (ServiceProviderBuildItem i : serviceProviderBuildItems) {
-            addReflectiveClass(reflectiveClasses, true, false, false, false, false,
-                    i.providers().toArray(new String[] {}));
         }
 
         for (Map.Entry<String, ReflectionInfo> entry : reflectiveClasses.entrySet()) {
