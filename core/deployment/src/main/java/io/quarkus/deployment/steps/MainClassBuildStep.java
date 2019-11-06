@@ -5,7 +5,9 @@ import static io.quarkus.gizmo.MethodDescriptor.ofMethod;
 
 import java.io.File;
 import java.lang.reflect.Modifier;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -18,6 +20,7 @@ import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.builditem.ApplicationClassNameBuildItem;
 import io.quarkus.deployment.builditem.ApplicationInfoBuildItem;
 import io.quarkus.deployment.builditem.BytecodeRecorderObjectLoaderBuildItem;
+import io.quarkus.deployment.builditem.ConfigurationBuildItem;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
 import io.quarkus.deployment.builditem.GeneratedClassBuildItem;
 import io.quarkus.deployment.builditem.JavaLibraryPathAdditionalPathBuildItem;
@@ -25,13 +28,17 @@ import io.quarkus.deployment.builditem.LaunchModeBuildItem;
 import io.quarkus.deployment.builditem.MainBytecodeRecorderBuildItem;
 import io.quarkus.deployment.builditem.MainClassBuildItem;
 import io.quarkus.deployment.builditem.ObjectSubstitutionBuildItem;
+import io.quarkus.deployment.builditem.RunTimeConfigurationDefaultBuildItem;
 import io.quarkus.deployment.builditem.SslTrustStoreSystemPropertyBuildItem;
 import io.quarkus.deployment.builditem.StaticBytecodeRecorderBuildItem;
 import io.quarkus.deployment.builditem.SystemPropertyBuildItem;
+import io.quarkus.deployment.configuration.BuildTimeConfigurationReader;
+import io.quarkus.deployment.configuration.RunTimeConfigurationGenerator;
 import io.quarkus.deployment.recording.BytecodeRecorderImpl;
 import io.quarkus.gizmo.BytecodeCreator;
 import io.quarkus.gizmo.CatchBlockCreator;
 import io.quarkus.gizmo.ClassCreator;
+import io.quarkus.gizmo.ClassOutput;
 import io.quarkus.gizmo.FieldCreator;
 import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.MethodDescriptor;
@@ -65,7 +72,26 @@ class MainClassBuildStep {
             List<BytecodeRecorderObjectLoaderBuildItem> loaders,
             BuildProducer<GeneratedClassBuildItem> generatedClass,
             LaunchModeBuildItem launchMode,
-            ApplicationInfoBuildItem applicationInfo) {
+            ApplicationInfoBuildItem applicationInfo,
+            List<RunTimeConfigurationDefaultBuildItem> runTimeDefaults,
+            ConfigurationBuildItem configItem) {
+
+        BuildTimeConfigurationReader.ReadResult readResult = configItem.getReadResult();
+        Map<String, String> defaults = new HashMap<>();
+        for (RunTimeConfigurationDefaultBuildItem item : runTimeDefaults) {
+            if (defaults.putIfAbsent(item.getKey(), item.getValue()) != null) {
+                throw new IllegalStateException("More than one default value for " + item.getKey() + " was produced");
+            }
+        }
+
+        ClassOutput classOutput = new ClassOutput() {
+            @Override
+            public void write(String name, byte[] data) {
+                generatedClass.produce(new GeneratedClassBuildItem(true, name, data));
+            }
+        };
+
+        RunTimeConfigurationGenerator.generate(readResult, classOutput, defaults);
 
         appClassNameProducer.produce(new ApplicationClassNameBuildItem(APP_CLASS));
 
@@ -89,6 +115,10 @@ class MainClassBuildStep {
         }
 
         mv.invokeStaticMethod(MethodDescriptor.ofMethod(Timing.class, "staticInitStarted", void.class));
+
+        // ensure that the config class is initialized
+        mv.invokeStaticMethod(RunTimeConfigurationGenerator.C_ENSURE_INITIALIZED);
+
         ResultHandle startupContext = mv.newInstance(ofConstructor(StartupContext.class));
         mv.writeStaticField(scField.getFieldDescriptor(), startupContext);
         TryBlock tryBlock = mv.tryBlock();
@@ -170,7 +200,7 @@ class MainClassBuildStep {
         tryBlock = mv.tryBlock();
 
         // Load the run time configuration
-        tryBlock.invokeStaticMethod(ConfigurationSetup.CREATE_RUN_TIME_CONFIG);
+        tryBlock.invokeStaticMethod(RunTimeConfigurationGenerator.C_CREATE_RUN_TIME_CONFIG);
 
         for (MainBytecodeRecorderBuildItem holder : mainMethod) {
             final BytecodeRecorderImpl recorder = holder.getBytecodeRecorder();

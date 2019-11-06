@@ -15,7 +15,9 @@ import java.util.List;
 import java.util.Properties;
 import java.util.function.Consumer;
 
+import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.config.spi.ConfigBuilder;
+import org.eclipse.microprofile.config.spi.ConfigProviderResolver;
 import org.jboss.logging.Logger;
 
 import io.quarkus.bootstrap.BootstrapDependencyProcessingException;
@@ -36,7 +38,10 @@ import io.quarkus.deployment.builditem.MainClassBuildItem;
 import io.quarkus.deployment.pkg.builditem.ArtifactResultBuildItem;
 import io.quarkus.deployment.pkg.builditem.JarBuildItem;
 import io.quarkus.deployment.pkg.builditem.NativeImageBuildItem;
+import io.quarkus.runtime.configuration.QuarkusConfigFactory;
 import io.smallrye.config.PropertiesConfigSource;
+import io.smallrye.config.SmallRyeConfig;
+import io.smallrye.config.SmallRyeConfigBuilder;
 import io.smallrye.config.SmallRyeConfigProviderResolver;
 
 /**
@@ -110,20 +115,26 @@ public class AugmentTask implements CuratedTask<AugmentOutcome> {
         }
         //first lets look for some config, as it is not on the current class path
         //and we need to load it to run the build process
-        Path config = configDir.resolve("application.properties");
-        if (Files.exists(config)) {
+        Path configPath = configDir.resolve("application.properties");
+        if (Files.exists(configPath)) {
             try {
-                ConfigBuilder builder = SmallRyeConfigProviderResolver.instance().getBuilder()
+                SmallRyeConfigBuilder builder = new SmallRyeConfigBuilder()
                         .addDefaultSources()
                         .addDiscoveredConverters()
                         .addDiscoveredSources()
-                        .withSources(new PropertiesConfigSource(config.toUri().toURL()));
+                        .withSources(new PropertiesConfigSource(configPath.toUri().toURL()));
 
                 if (configCustomizer != null) {
                     configCustomizer.accept(builder);
                 }
-                SmallRyeConfigProviderResolver.instance().registerConfig(builder.build(),
-                        Thread.currentThread().getContextClassLoader());
+                final SmallRyeConfig config = builder.build();
+                QuarkusConfigFactory.setConfig(config);
+                final ConfigProviderResolver cpr = ConfigProviderResolver.instance();
+                final Config existing = cpr.getConfig();
+                if (existing != config) {
+                    cpr.releaseConfig(existing);
+                    // subsequent calls will get the new config
+                }
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }

@@ -79,7 +79,7 @@ public class EventBusConfiguration {
     /**
      * The number of reconnection attempts.
      */
-    @ConfigItem
+    @ConfigItem(defaultValue = "0")
     public int reconnectAttempts;
 
     /**
@@ -97,7 +97,7 @@ public class EventBusConfiguration {
     /**
      * Whether or not to reuse the port.
      */
-    @ConfigItem
+    @ConfigItem(defaultValue = "false")
     public boolean reusePort;
 
     /**
@@ -115,13 +115,13 @@ public class EventBusConfiguration {
     /**
      * Enables or Disabled SSL.
      */
-    @ConfigItem
+    @ConfigItem(defaultValue = "false")
     public boolean ssl;
 
     /**
      * Whether or not to keep the TCP connection opened (keep-alive).
      */
-    @ConfigItem
+    @ConfigItem(defaultValue = "false")
     public boolean tcpKeepAlive;
 
     /**
@@ -139,7 +139,7 @@ public class EventBusConfiguration {
     /**
      * Enables or disables the trust all parameter.
      */
-    @ConfigItem
+    @ConfigItem(defaultValue = "false")
     public boolean trustAll;
 
 }
