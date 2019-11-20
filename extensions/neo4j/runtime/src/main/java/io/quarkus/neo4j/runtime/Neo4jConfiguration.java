@@ -36,7 +36,7 @@ public class Neo4jConfiguration {
     public Pool pool;
 
     @ConfigGroup
-    static class Authentication {
+    public static class Authentication {
 
         /**
          * The login of the user connecting to the database.
@@ -58,7 +58,7 @@ public class Neo4jConfiguration {
     }
 
     @ConfigGroup
-    static class Pool {
+    public static class Pool {
 
         /**
          * Flag, if metrics are enabled.
