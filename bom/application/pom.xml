@@ -89,6 +89,7 @@
         <!-- GraalVM sdk 23.1.2 has a minimum JDK requirement of 17+ at runtime -->
         <graal-sdk.version>23.1.2</graal-sdk.version>
         <gizmo.version>1.8.0</gizmo.version>
+        <gizmo2.version>2.0-SNAPSHOT</gizmo2.version>
         <jackson-bom.version>2.18.1</jackson-bom.version>
         <commons-logging-jboss-logging.version>1.0.0.Final</commons-logging-jboss-logging.version>
         <commons-lang3.version>3.17.0</commons-lang3.version>
@@ -3598,6 +3599,11 @@
                 <groupId>io.quarkus.gizmo</groupId>
                 <artifactId>gizmo</artifactId>
                 <version>${gizmo.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.quarkus.gizmo</groupId>
+                <artifactId>gizmo2</artifactId>
+                <version>${gizmo2.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.quarkus.gizmo</groupId>

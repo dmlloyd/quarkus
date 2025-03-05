@@ -12,6 +12,7 @@ import static java.util.stream.Collectors.toSet;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.lang.constant.ClassDesc;
 import java.lang.reflect.Modifier;
 import java.net.URI;
 import java.nio.file.DirectoryStream;
@@ -27,6 +28,15 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
+import io.github.dmlloyd.classfile.ClassFile;
+import io.github.dmlloyd.classfile.ClassTransform;
+import io.github.dmlloyd.classfile.extras.reflect.AccessFlag;
+import io.quarkus.gizmo2.Constant;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.FieldDesc;
+import io.quarkus.gizmo2.Gizmo;
+import io.quarkus.gizmo2.LocalVar;
+import io.quarkus.gizmo2.Var;
 import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.eclipse.microprofile.config.ConfigValue;
@@ -116,7 +126,42 @@ public class ConfigGenerationBuildStep {
             BuildProducer<StaticInitConfigBuilderBuildItem> staticInitConfigBuilder,
             BuildProducer<RunTimeConfigBuilderBuildItem> runTimeConfigBuilder) {
 
+        Gizmo g =;
+
         String builderClassName = "io.quarkus.runtime.generated.BuildTimeRunTimeFixedConfigSourceBuilder";
+        g.class_(ClassDesc.of(builderClassName), zc -> {
+            zc.implements_(ConfigBuilder.class);
+            zc.withFlag(AccessFlag.FINAL);
+            FieldDesc source = zc.field("source", fc -> {
+                fc.withFlag(AccessFlag.STATIC);
+                fc.withFlag(AccessFlag.FINAL);
+            });
+
+            zc.initializer(bc -> {
+                var map = bc.define("map", bc.new_(HashMap.class));
+                for (Map.Entry<String, String> entry : configItem.getReadResult().getBuildTimeRunTimeValues().entrySet()) {
+                    bc.withMap(map).put(entry.getKey(), entry.getValue());
+                }
+                Var dcs = bc.define("dcs", bc.new_(DisableableConfigSource.class, List.of(
+                    bc.define("dvcs", bc.new_(DefaultValuesConfigSource.class, List.of(
+                        map,
+                        Constant.of("BuildTime RunTime Fixed"),
+                        Constant.of(Integer.MAX_VALUE)
+                    )))
+                )));
+                Expr lambda = bc.lambda(Runnable.class, lc -> {
+                    Var capturedMap = lc.capture(map);
+                    lc.body(lbc -> {
+
+                    });
+                });
+                bc.set(Expr.staticField(source), dcs);
+            });
+
+
+        });
+
+
         try (ClassCreator classCreator = ClassCreator.builder()
                 .classOutput(new GeneratedClassGizmoAdaptor(generatedClass, true))
                 .className(builderClassName)
