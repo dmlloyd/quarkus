@@ -1,6 +1,15 @@
 package io.quarkus.test.junit.launcher;
 
+import java.util.Collection;
+import java.util.Optional;
+
+import org.junit.platform.engine.TestSource;
+import org.junit.platform.engine.support.descriptor.ClassSource;
+import org.junit.platform.engine.support.descriptor.CompositeTestSource;
+import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.launcher.LauncherInterceptor;
+import org.junit.platform.launcher.TestIdentifier;
+import org.junit.platform.launcher.TestPlan;
 
 import io.quarkus.test.junit.classloading.FacadeClassLoader;
 
@@ -15,13 +24,41 @@ public class CustomLauncherInterceptor implements LauncherInterceptor {
     @Override
     public <T> T intercept(Invocation<T> invocation) {
         // Do not do any classloading dance for prod mode tests;
-        if (System.getProperty("prod.mode.tests") != null) {
-            return invocation.proceed();
-
-        } else {
-            return actuallyIntercept(invocation);
+        T result = System.getProperty("prod.mode.tests") != null ? invocation.proceed() : actuallyIntercept(invocation);
+        System.out.printf("Intercepted %s and got %s%n", invocation, result);
+        if (result instanceof TestPlan tp) {
+            dumpTestPlan(tp, tp.getRoots(), 0);
         }
+        return result;
+    }
 
+    private static void dumpTestPlan(TestPlan testPlan, Collection<TestIdentifier> ids, int depth) {
+        for (TestIdentifier id : ids) {
+            System.out.printf("%s - %s %s%n", "  ".repeat(depth), id,
+                    id.getSource().map(Object::getClass).map(Class::getName).orElse(""));
+            dumpTestPlan(testPlan, testPlan.getChildren(id), depth + 1);
+        }
+    }
+
+    private static void eagerlyLoad(TestPlan testPlan, Collection<TestIdentifier> ids) {
+        for (TestIdentifier id : ids) {
+            Optional<TestSource> source = id.getSource();
+            if (source.isPresent()) {
+                TestSource testSource = source.get();
+                eagerlyLoad(testSource);
+            }
+            eagerlyLoad(testPlan, testPlan.getChildren(id));
+        }
+    }
+
+    private static void eagerlyLoad(final TestSource testSource) {
+        if (testSource instanceof ClassSource cs) {
+            cs.getJavaClass();
+        } else if (testSource instanceof MethodSource ms) {
+            ms.getJavaClass();
+        } else if (testSource instanceof CompositeTestSource cts) {
+            cts.getSources().forEach(CustomLauncherInterceptor::eagerlyLoad);
+        }
     }
 
     private <T> T actuallyIntercept(Invocation<T> invocation) {
@@ -39,7 +76,12 @@ public class CustomLauncherInterceptor implements LauncherInterceptor {
                 facadeLoader = new FacadeClassLoader(currentCl);
             }
             Thread.currentThread().setContextClassLoader(facadeLoader);
-            return invocation.proceed();
+            T result = invocation.proceed();
+            // eagerly load all the classes!
+            if (result instanceof TestPlan tp) {
+                eagerlyLoad(tp, tp.getRoots());
+            }
+            return result;
 
             // It's tempting to tidy up in a finally block by resetting the TCCL, but it looks like the gradle
             // devtools tests may be asynchronous, because if we reset the TCCL
