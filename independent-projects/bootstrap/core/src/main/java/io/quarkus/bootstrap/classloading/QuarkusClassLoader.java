@@ -185,7 +185,7 @@ public class QuarkusClassLoader extends ClassLoader implements Closeable {
     private QuarkusClassLoader(Builder builder) {
         // Not passing the name to the parent constructor on purpose:
         // stacktraces become very ugly if we do that.
-        super(builder.parent);
+        super("busted", builder.parent);
         this.name = builder.name;
         this.status = STATUS_OPEN;
         this.normalPriorityElements = builder.normalPriorityElements;

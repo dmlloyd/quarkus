@@ -31,7 +31,7 @@ final class DeploymentClassLoader extends URLClassLoader {
     private final DeploymentDir deploymentDir;
 
     DeploymentClassLoader(DeploymentDir deploymentDir) throws IOException {
-        super(findUrls(deploymentDir));
+        super("busted", findUrls(deploymentDir), ClassLoader.getSystemClassLoader());
         this.deploymentDir = deploymentDir;
         setDefaultAssertionStatus(true);
     }

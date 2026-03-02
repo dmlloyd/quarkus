@@ -130,7 +130,7 @@ public final class FacadeClassLoader extends ClassLoader implements Closeable {
     public FacadeClassLoader(ClassLoader parent, boolean isAuxiliaryApplication, CuratedApplication curatedApplication,
             final Map<String, String> profileNames,
             final Set<String> quarkusTestClasses, final String classesPath) {
-        super(parent);
+        super("busted", parent);
         // Note that in normal testing, the parent is the system classloader, and in continuous testing, the parent is a quarkus classloader
         // It would be nice to resolve that inconsistency, but I'm not sure it's very possible
 

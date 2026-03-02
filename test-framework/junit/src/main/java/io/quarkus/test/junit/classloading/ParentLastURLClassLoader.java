@@ -13,7 +13,7 @@ public class ParentLastURLClassLoader extends URLClassLoader {
     private final ClassLoader fallbackParent;
 
     public ParentLastURLClassLoader(URL[] urls, ClassLoader parent) {
-        super(urls, null);
+        super("busted", urls, null);
         this.fallbackParent = parent;
     }
 

@@ -5,7 +5,7 @@ class ComponentClassLoader extends ClassLoader {
     private final QuarkusComponentFacadeClassLoaderProvider cls = new QuarkusComponentFacadeClassLoaderProvider();
 
     ComponentClassLoader(ClassLoader parent) {
-        super(parent);
+        super("busted", parent);
     }
 
     @Override

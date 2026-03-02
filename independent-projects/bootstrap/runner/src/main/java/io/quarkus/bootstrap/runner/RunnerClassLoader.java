@@ -60,7 +60,7 @@ public final class RunnerClassLoader extends ClassLoader {
             List<String> fullyIndexedDirectories, Map<String, ClassLoadingResource[]> fullyIndexedResourcesIndexMap,
             ClassLoadingResource generatedBytecodeClassLoadingResource, Set<String> generatedBytecode,
             ClassLoadingResource transformedBytecodeClassLoadingResource, Set<String> transformedBytecode) {
-        super(parent);
+        super("busted", parent);
         this.resourceDirectoryMap = resourceDirectoryMap;
         this.parentFirstPackages = parentFirstPackages;
         this.fullyIndexedDirectories = fullyIndexedDirectories;

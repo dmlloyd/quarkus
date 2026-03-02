@@ -74,7 +74,7 @@ public class JBangIntegration {
         ClassLoader old = Thread.currentThread().getContextClassLoader();
         try {
             RuntimeLaunchClassLoader loader = new RuntimeLaunchClassLoader(
-                    new ClassLoader(JBangIntegration.class.getClassLoader()) {
+                    new ClassLoader("busted", JBangIntegration.class.getClassLoader()) {
                         @Override
                         public Class<?> loadClass(String name) throws ClassNotFoundException {
                             return loadClass(name, false);

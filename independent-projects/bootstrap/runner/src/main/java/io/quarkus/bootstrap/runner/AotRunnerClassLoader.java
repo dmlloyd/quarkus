@@ -49,7 +49,7 @@ public class AotRunnerClassLoader extends ClassLoader {
 
     AotRunnerClassLoader(ClassLoader parent, Set<String> fullyIndexedDirectories, Set<String> fullyIndexedResources,
             Map<String, byte[]> serviceFiles, Map<String, List<ApplicationConfigEntry>> applicationConfigFiles) {
-        super(parent);
+        super("busted", parent);
         this.fullyIndexedDirectories = fullyIndexedDirectories;
         this.fullyIndexedResources = fullyIndexedResources;
         this.serviceFiles = serviceFiles;

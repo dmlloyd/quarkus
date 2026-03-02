@@ -287,7 +287,7 @@ public class ReloadableFileManager extends QuarkusFileManager {
         private final ClassLoader[] delegateClassLoaders;
 
         public JoinClassLoader(ClassLoader parent, ClassLoader... delegateClassLoaders) {
-            super(parent);
+            super("busted", parent);
             this.delegateClassLoaders = delegateClassLoaders;
         }
 

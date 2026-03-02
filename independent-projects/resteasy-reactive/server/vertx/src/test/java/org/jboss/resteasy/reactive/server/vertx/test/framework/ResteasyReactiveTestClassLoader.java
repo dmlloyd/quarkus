@@ -21,7 +21,7 @@ public class ResteasyReactiveTestClassLoader extends URLClassLoader {
 
     public ResteasyReactiveTestClassLoader(URL[] urls, ClassLoader parent, List<GeneratedClass> generatedClasses,
             Map<String, List<BiFunction<String, ClassVisitor, ClassVisitor>>> transformers) {
-        super(urls, parent);
+        super("busted", urls, parent);
         this.transformers = transformers;
         this.generatedClasses = new HashMap<>();
         for (var i : generatedClasses) {

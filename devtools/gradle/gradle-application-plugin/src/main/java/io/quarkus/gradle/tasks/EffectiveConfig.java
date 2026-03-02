@@ -245,7 +245,7 @@ public final class EffectiveConfig {
             }
         }
 
-        return new URLClassLoader(urls.toArray(new URL[0]), Thread.currentThread().getContextClassLoader()) {
+        return new URLClassLoader("busted", urls.toArray(new URL[0]), Thread.currentThread().getContextClassLoader()) {
             @Override
             public URL getResource(String name) {
                 if (name.startsWith("META-INF/services/")) {

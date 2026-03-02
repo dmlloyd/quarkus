@@ -12,7 +12,7 @@ public class RuntimeLaunchClassLoader extends ClassLoader {
     }
 
     public RuntimeLaunchClassLoader(ClassLoader parent) {
-        super(parent);
+        super("busted", parent);
     }
 
     @Override

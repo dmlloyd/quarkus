@@ -16,7 +16,7 @@ class ArcTestClassLoader extends ClassLoader {
     private final File resourceReferenceProviderFile;
 
     public ArcTestClassLoader(ClassLoader parent, File componentsProviderFile, File resourceReferenceProviderFile) {
-        super(parent);
+        super("busted", parent);
         this.componentsProviderFile = Objects.requireNonNull(componentsProviderFile);
         this.resourceReferenceProviderFile = resourceReferenceProviderFile;
     }

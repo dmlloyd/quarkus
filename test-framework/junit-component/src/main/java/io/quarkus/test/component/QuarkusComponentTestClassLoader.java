@@ -38,7 +38,7 @@ public class QuarkusComponentTestClassLoader extends ClassLoader {
     private final BuildResult buildResult;
 
     public QuarkusComponentTestClassLoader(ClassLoader parent, String name, BuildResult buildResult) {
-        super(parent);
+        super("busted", parent);
         this.name = name;
         this.buildResult = buildResult;
     }
